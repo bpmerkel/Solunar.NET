@@ -6,7 +6,7 @@
 
 using static System.Math;
 
-// Original algoirthm sourced from Steven Musumeche's TypeScript code: https://github.com/stevenmusumeche/solunar
+// Original algorithm sourced from Steven Musumeche's TypeScript code: https://github.com/stevenmusumeche/solunar
 
 void Main()
 {
@@ -16,6 +16,13 @@ void Main()
 	var longitude = -81.43; // Longitude (- is west)
 	var s = Solunar(date, latitude, longitude);
 	s.Dump();
+	
+	Enumerable.Range(0, 120)
+		.Select(n => DateTime.Today.AddDays(n))
+		.Select(d => Solunar(d, latitude, longitude))
+		.Where(s => s.DayScore >= 4)
+		.Select(s => new { s.DayStart, s.DayScore, s.Sunrise, s.Sunset, s.MajorPeriods, s.MinorPeriods })
+		.Dump();
 }
 
 public SolunarInfo Solunar(DateTime date, double latitude, double longitude)
@@ -86,6 +93,11 @@ private List<SolunarRange> calculateMajorMinorPeriods(List<TransitInfo> transitT
 
 	var sunriseRange = new RangeInfo { Start = sunrise.AddMinutes(-60), End = sunrise.AddMinutes(60) };
 	var sunsetRange = new RangeInfo { Start = sunset.AddMinutes(-60), End = sunset.AddMinutes(60) };
+	return ranges
+		.Select(r => calcWeight(r))
+		.OrderBy(r => r.Start)
+		.ToList();
+	
 	SolunarRange calcWeight(SolunarRange range)
 	{
 		var nearSunrise = sunriseRange.Includes(range.Start) || sunriseRange.Includes(range.End);
@@ -93,11 +105,6 @@ private List<SolunarRange> calculateMajorMinorPeriods(List<TransitInfo> transitT
 		range.Weight += (nearSunrise || nearSunset) ? 1 : 0;
 		return range;
 	};
-
-	return ranges
-		.Select(r => calcWeight(r))
-		.OrderBy(r => r.Start)
-		.ToList();
 }
 
 private MoonInfo moonData(DateTime start, DateTime end, double latitude, double longitude)
@@ -182,17 +189,17 @@ private int calculateDayScore(List<SolunarRange> solunarPeriods, string phaseNam
 
 private string moonPhaseName(double phase) => new[]
 	{
-		// min, max, phase name
-		( min: 0.000, max: 0.125, name: NewMoon ),
-		( min: 0.125, max: 0.250, name: "Waxing Crescent" ),
-		( min: 0.250, max: 0.325, name: "First Quarter" ),
-		( min: 0.325, max: 0.500, name: "Waxing Gibbous" ),
-		( min: 0.500, max: 0.625, name: FullMoon ),
-		( min: 0.625, max: 0.750, name: "Waning Gibbous" ),
-		( min: 0.750, max: 0.825, name: "Last Quarter" ),
-		( min: 0.825, max: 1.010, name: "Waning Crescent" )
+		( Illumination: 0.825, Name: "Waning Crescent" ),
+		( Illumination: 0.750, Name: "Last Quarter" ),
+		( Illumination: 0.625, Name: "Waning Gibbous" ),
+		( Illumination: 0.500, Name: FullMoon ),
+		( Illumination: 0.325, Name: "Waxing Gibbous" ),
+		( Illumination: 0.250, Name: "First Quarter" ),
+		( Illumination: 0.125, Name: "Waxing Crescent" ),
+		( Illumination: 0.000, Name: NewMoon )
 	}
-	.First(p => phase >= p.min && phase < p.max).name;
+	.First(p => phase >= p.Illumination)
+	.Name;
 
 public class SolunarInfo
 {
